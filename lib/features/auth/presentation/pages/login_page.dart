@@ -2,6 +2,7 @@ import 'package:counter_app_riverpod/features/auth/presentation/providers/auth_p
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/auth_text_field.dart';
 import '../../../../core/utils/validators.dart';
 
@@ -13,6 +14,27 @@ class LoginPage extends ConsumerStatefulWidget {
 }
 
 class _LoginPageState extends ConsumerState<LoginPage> {
+  bool _rememberMe = false;
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedEmail = prefs.getString('saved_email');
+    final savedPassword = prefs.getString('saved_password');
+    final remember = prefs.getBool('remember_me') ?? false;
+    if (remember && savedEmail != null && savedPassword != null) {
+      setState(() {
+        _emailController.text = savedEmail;
+        _passwordController.text = savedPassword;
+        _rememberMe = true;
+      });
+    }
+  }
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -32,7 +54,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   }
 
   Future<void> _login() async {
+    // Close the keyboard first
+    FocusScope.of(context).unfocus();
     if (_formKey.currentState?.validate() ?? false) {
+      if (_rememberMe) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('saved_email', _emailController.text.trim());
+        await prefs.setString('saved_password', _passwordController.text);
+        await prefs.setBool('remember_me', true);
+      } else {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('saved_email');
+        await prefs.remove('saved_password');
+        await prefs.setBool('remember_me', false);
+      }
       await ref
           .read(authStateProvider.notifier)
           .login(
@@ -67,18 +102,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     });
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
-          child: Center(
-            child: SingleChildScrollView(
-              child: Form(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final keyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+
+              final form = Form(
                 key: _formKey,
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Logo/Title
                     const Icon(
                       Icons.lock_outline,
                       size: 80,
@@ -104,7 +141,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     const SizedBox(height: 48),
 
-                    // Email Field
                     AuthTextField(
                       controller: _emailController,
                       label: 'Email',
@@ -114,7 +150,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Password Field
                     AuthTextField(
                       controller: _passwordController,
                       label: 'Password',
@@ -130,9 +165,23 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         onPressed: _togglePasswordVisibility,
                       ),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 16),
 
-                    // Login Button
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _rememberMe,
+                          onChanged: (value) {
+                            setState(() {
+                              _rememberMe = value ?? false;
+                            });
+                          },
+                        ),
+                        const Text('Remember Me'),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
                     ElevatedButton(
                       onPressed: authState.isLoading ? null : _login,
                       style: ElevatedButton.styleFrom(
@@ -163,7 +212,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Sign up link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -182,8 +230,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     ),
                   ],
                 ),
-              ),
-            ),
+              );
+              if (keyboardOpen) {
+                return SingleChildScrollView(child: form);
+              } else {
+                return Center(child: SingleChildScrollView(child: form));
+              }
+            },
           ),
         ),
       ),

@@ -14,6 +14,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = authState.when(
         data: (user) => user != null,
         loading: () => false,
+        // ignore: unnecessary_underscores
         error: (_, __) => false,
       );
 
