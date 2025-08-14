@@ -2,10 +2,11 @@ import 'package:counter_app_riverpod/core/errors/failures.dart';
 
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
-import '../datasources/auth_local_datasource.dart';
+import '../datasources/auth_hive_datasource.dart';
+import '../models/user_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
-  final AuthLocalDataSource _localDataSource;
+  final AuthHiveDatasource _localDataSource;
   User? _currentUser;
 
   AuthRepositoryImpl(this._localDataSource);
@@ -16,12 +17,18 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
   }) async {
     try {
-      final user = await _localDataSource.login(
-        email: email,
-        password: password,
-      );
-      _currentUser = user;
-      return Either.right(user);
+      final userModel = await _localDataSource.getUser(email);
+      if (userModel != null && userModel.password == password) {
+        // Use dummy id and createdAt for compatibility
+        _currentUser = User(
+          id: 0,
+          email: userModel.email,
+          createdAt: DateTime.now(),
+        );
+        return Either.right(_currentUser!);
+      } else {
+        return Either.left(AuthFailure('Invalid email or password'));
+      }
     } on Failure catch (failure) {
       return Either.left(failure);
     } catch (e) {
@@ -35,12 +42,14 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
   }) async {
     try {
-      final user = await _localDataSource.signup(
-        email: email,
-        password: password,
-      );
-      _currentUser = user;
-      return Either.right(user);
+      final exists = await _localDataSource.userExists(email);
+      if (exists) {
+        return Either.left(AuthFailure('User already exists'));
+      }
+      final userModel = UserModel(email: email, password: password);
+      await _localDataSource.addUser(userModel);
+      _currentUser = User(id: 0, email: email, createdAt: DateTime.now());
+      return Either.right(_currentUser!);
     } on Failure catch (failure) {
       return Either.left(failure);
     } catch (e) {

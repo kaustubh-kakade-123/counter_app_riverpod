@@ -4,17 +4,16 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/signup_usecase.dart';
 import '../../data/repositories/auth_repository_impl.dart';
-import '../../data/datasources/auth_local_datasource.dart';
-import '../../../../core/database/database_helper.dart';
+import '../../data/datasources/auth_hive_datasource.dart';
 
-// Data source provider
-final authLocalDataSourceProvider = Provider<AuthLocalDataSource>((ref) {
-  return AuthLocalDataSourceImpl(DatabaseHelper());
+// Data source provider (Hive)
+final authHiveDataSourceProvider = Provider<AuthHiveDatasource>((ref) {
+  return AuthHiveDatasource();
 });
 
 // Repository provider
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final dataSource = ref.read(authLocalDataSourceProvider);
+  final dataSource = ref.read(authHiveDataSourceProvider);
   return AuthRepositoryImpl(dataSource);
 });
 

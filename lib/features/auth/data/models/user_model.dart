@@ -1,33 +1,25 @@
-import '../../domain/entities/user.dart';
+import 'package:hive/hive.dart';
 
-class UserModel extends User {
-  const UserModel({
-    required super.id,
-    required super.email,
-    required super.createdAt,
-  });
+part 'user_model.g.dart';
 
-  factory UserModel.fromMap(Map<String, dynamic> map) {
+@HiveType(typeId: 0)
+class UserModel {
+  @HiveField(0)
+  final String email;
+
+  @HiveField(1)
+  final String password;
+
+  UserModel({required this.email, required this.password});
+
+  factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: map['id'] as int,
-      email: map['email'] as String,
-      createdAt: DateTime.parse(map['created_at'] as String),
+      email: json['email'] as String,
+      password: json['password'] as String,
     );
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'email': email,
-      'created_at': createdAt.toIso8601String(),
-    };
-  }
-
-  Map<String, dynamic> toMapForInsert(String passwordHash) {
-    return {
-      'email': email,
-      'password_hash': passwordHash,
-      'created_at': createdAt.toIso8601String(),
-    };
+  Map<String, dynamic> toJson() {
+    return {'email': email, 'password': password};
   }
 }
